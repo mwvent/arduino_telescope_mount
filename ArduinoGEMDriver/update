@@ -1,0 +1,15 @@
+#!/bin/sh
+# This script is pretty much specific to me 
+# I do not do development on the machine the scope is plugged into and have it compiled and sent to
+# the remote machine to upload instead - left in for completeness
+make
+hexfile="./build-mega2560/ArduinoGEMDriver.hex"
+cat $hexfile | ssh mwvent@192.168.0.21 '
+	tmpfile=$(mktemp --suffix=.hex); 
+	avrdude_path="/home/mwvent/arduino-1.0.6/hardware/tools";
+	ttyport=$(ls /dev/ttyACM*);
+	cat - > $tmpfile;
+	$avrdude_path/avrdude \
+		-C$avrdude_path/avrdude.conf -p m2560 -c stk500v2 -P $ttyport -b 115200 -F -D -U flash:w:$tmpfile;
+	rm $tmpfile;
+	'
