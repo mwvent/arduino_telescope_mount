@@ -1,7 +1,21 @@
 #!/bin/sh
-# This script is pretty much specific to me 
+# This script is not a required part of the proect
+# Usage
 # I do not do development on the machine the scope is plugged into and have it compiled and sent to
-# the remote machine to upload instead - left in for completeness
+# the remote machine to upload instead - left in as it may be useful to others that want to update
+# their scope that is based away from where you are working
+#
+# To use make sure you have set up the Arduino-Makefile - download https://github.com/sudar/Arduino-Makefile into a folder and edit the make file
+# in the ArduinoGEMDriver folder to include the path where you downloaded it to
+# 
+# Download arduino-1.0.6 onto the remote machine and change the path in the script below to the location of that folder
+# (i.e mine is /home/mwvent/arduino-1.0.6/hardware/tools
+# 
+# If your adruino device does not appear on your remote machine as /dev/ttyACMx change ttyport= to the device
+# also if you have more than one ttyACM device then ttyport=$(ls /dev/ttyACM*) will not work - you will need to change it
+# to the exact device i.e ttyport="/dev/ttyACM2"
+#
+
 make
 hexfile="./build-mega2560/ArduinoGEMDriver.hex"
 cat $hexfile | ssh mwvent@192.168.0.21 '

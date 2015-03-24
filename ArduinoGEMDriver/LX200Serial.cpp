@@ -62,6 +62,25 @@ int LX200SerialHandler_c::findCharacterAndChangeToStringTerminator(char* chars, 
 	}
 }
 
+signed long LX200SerialHandler_c::getExtendedCommandValue() {
+    int valuestartpos = findCharacterAndChangeToStringTerminator(&serialBuffer[0], 1, ' ');
+    if(valuestartpos == -1) {
+	    return -1;
+    }
+    return (signed long)atol(&serialBuffer[valuestartpos + 1]);
+}
+
+int LX200SerialHandler_c::findCharacter(char* chars, int startPos, char charToFind) {
+	for(int findCharPos=startPos; true; findCharPos++) {
+		if((chars[findCharPos]=='#' && charToFind!='#') || chars[findCharPos] == 0) { // found # or string terminator
+			return -1; // return invalid
+		}
+		if(chars[findCharPos] == charToFind) { // found
+			return findCharPos;
+		}
+	}
+}
+
 void LX200SerialHandler_c::progmemPrint (PGM_P s) {
 	char c;
 	while ((c = pgm_read_byte(s++)) != 0) {
@@ -306,28 +325,28 @@ void LX200SerialHandler_c::update() {
 		}
 
 		if(serialBuffer[serialBuffer_count] == '#') { // hit a hash
-			serialBuffer[serialBuffer_count] = 0;
+			serialBuffer[serialBuffer_count] = 0; // swap the hash for a string terminator
 			#ifdef debugOut_showSPI1commandsOnSPI0
-			// send a copy of the command rcvd to SPI0
-			Serial.print("Received: '");
-			for(byte lp=0; lp<=serialBuffer_count; lp++) {
-				Serial.write(serialBuffer[lp]);
-			}
-			Serial.println("'");
+				// send a copy of the command rcvd to SPI0
+				Serial.print("Received: '");
+				for(byte lp=0; lp<=serialBuffer_count; lp++) {
+					Serial.write(serialBuffer[lp]);
+				}
+				Serial.println("'");
 			#endif
 			// process command unless the hash was the only thing received
 			if(serialBuffer_count!=0) { 
 				#ifdef debugOut_showSPI1commandsOnSPI0
-				Serial.print("Sent: '");
+					Serial.print("Sent: '");
 				#endif
 				serialCommand();
 				#ifdef debugOut_showSPI1commandsOnSPI0
-				Serial.println("'");
+					Serial.println("'");
 				#endif
 			}
 			serialBuffer_count=0;
 		} else {
-			if(serialBuffer_count<25) {
+			if(serialBuffer_count<49) {
 				serialBuffer_count++;
 			} else {
 				// progmemPrint(PSTR("Serial Buffer overflow#"));
@@ -344,13 +363,13 @@ void LX200SerialHandler_c::update() {
 		}
 
 		if(serialBuffer[serialBuffer_count] == '#') { // hit a hash
-			serialBuffer[serialBuffer_count] = 0;
+			serialBuffer[serialBuffer_count] = 0; // swap the hash for a string terminator
 			if(serialBuffer_count!=0) { // process command unless the hash was the only thing received
 				serialCommand();
 			}
 			serialBuffer_count=0;
 		} else {
-			if(serialBuffer_count<25) {
+			if(serialBuffer_count<49) {
 				serialBuffer_count++;
 			} else {
 				progmemPrint(PSTR("Serial Buffer overflow#"));
@@ -362,288 +381,244 @@ void LX200SerialHandler_c::update() {
 // -------------------------------------------------------------
 // Command parser
 // -------------------------------------------------------------
-enum LX200Commands {
-	other, ACK, P_HighPrecisionToggle,
-	U_ToggleLongFormat, 
-	// Motion Rates
-	RG_MotionRateGuide, RC_MotionRateCenter, RM_MotionRateFind, RS_MotionRateSlew,
-	// Motion
-	MS_SlewToCurrentObject, Q_AbortSlew,
-	Mn_MoveNorth, Ms_MoveSouth, Me_MoveEast, Mw_MoveWest,
-	Qn_StopMoveNorth, Qs_StopMoveSouth, Qe_StopMoveEast, Qw_StopMoveWest,
-	// Position
-	GR_GetRAOfMount, GD_GetDECOfMount,
-	Sr_SetRAOfCurrentObject, Sd_SetDECOfCurrentObject,
-	CM_SyncToCurrentObject,
-	// Date & Time
-	c_Get12or24HourClockStatus, GS_GetSiderealTime, SS_SetSiderealTime,
-	GL_GetLocalTime, Ga_GetLocalTime, SL_SetLocalTime, GC_GetCalendarDate,
-	SC_SetCalendarDate,
-	// Location
-	SG_SetOffsetFromGMT,
-	St_SetLatitude, Sg_SetLongitude,
-	Gt_GetLatitude, Gg_GetLongitude,
-};
 void LX200SerialHandler_c::serialCommand() {
 	DateTime nowTime = DS1307_RTC->getTime();
 	int loopInt = 0;
-	LX200Commands currentCommand = other;
-	if(serialBuffer[1]=='A'&&serialBuffer[2]=='C'&&serialBuffer[3]=='K') {
-		currentCommand=ACK;
-	}
-	if(serialBuffer[1]=='P') {
-		currentCommand=P_HighPrecisionToggle;
-	}
-	if(serialBuffer[1]=='U') {
-		currentCommand=U_ToggleLongFormat;
-	}
-	if(serialBuffer[1]=='C' && serialBuffer[2]=='M') {
-		currentCommand=CM_SyncToCurrentObject;
-	}
-	if(serialBuffer[1]=='M' && serialBuffer[2]=='S') {
-		currentCommand=MS_SlewToCurrentObject;
-	}
-	if(serialBuffer[1]=='Q') {
-		currentCommand=Q_AbortSlew;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='r') {
-		currentCommand=Sr_SetRAOfCurrentObject;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='d') {
-		currentCommand=Sd_SetDECOfCurrentObject;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='R') {
-		currentCommand=GR_GetRAOfMount;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='D') {
-		currentCommand=GD_GetDECOfMount;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='S') {
-		currentCommand=GS_GetSiderealTime;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='S') {
-		currentCommand=SS_SetSiderealTime;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='L') {
-		currentCommand=GL_GetLocalTime;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='a') {
-		currentCommand=Ga_GetLocalTime;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='L') {
-		currentCommand=SL_SetLocalTime;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='C') {
-		currentCommand=GC_GetCalendarDate;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='C') {
-		currentCommand=SC_SetCalendarDate;
-	}
-	if(serialBuffer[1]=='M' && serialBuffer[2]=='n') {
-		currentCommand=Mn_MoveNorth;
-	}
-	if(serialBuffer[1]=='M' && serialBuffer[2]=='s') {
-		currentCommand=Ms_MoveSouth;
-	}
-	if(serialBuffer[1]=='M' && serialBuffer[2]=='e') {
-		currentCommand=Me_MoveEast;
-	}
-	if(serialBuffer[1]=='M' && serialBuffer[2]=='w') {
-		currentCommand=Mw_MoveWest;
-	}
-	if(serialBuffer[1]=='Q' && serialBuffer[2]=='n') {
-		currentCommand=Qn_StopMoveNorth;
-	}
-	if(serialBuffer[1]=='Q' && serialBuffer[2]=='s') {
-		currentCommand=Qs_StopMoveSouth;
-	}
-	if(serialBuffer[1]=='Q' && serialBuffer[2]=='e') {
-		currentCommand=Qe_StopMoveEast;
-	}
-	if(serialBuffer[1]=='Q' && serialBuffer[2]=='w') {
-		currentCommand=Qw_StopMoveWest;
-	}
-	if(serialBuffer[1]=='R' && serialBuffer[2]=='G') {
-		currentCommand=RG_MotionRateGuide;
-	}
-	if(serialBuffer[1]=='R' && serialBuffer[2]=='C') {
-		currentCommand=RC_MotionRateCenter;
-	}
-	if(serialBuffer[1]=='R' && serialBuffer[2]=='M') {
-		currentCommand=RM_MotionRateFind;
-	}
-	if(serialBuffer[1]=='R' && serialBuffer[2]=='S') {
-		currentCommand=RS_MotionRateSlew;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='t') {
-		currentCommand=Gt_GetLatitude;
-	}
-	if(serialBuffer[1]=='G' && serialBuffer[2]=='g') {
-		currentCommand=Gg_GetLongitude;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='t') {
-		currentCommand=St_SetLatitude;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='g') {
-		currentCommand=Sg_SetLongitude;
-	}
-	if(serialBuffer[1]=='S' && serialBuffer[2]=='G') {
-		currentCommand=SG_SetOffsetFromGMT;
-	}
-
+	
 	int findCharPos;
 	int startPos;
 	int miscInt1;
 	int miscInt2;
-	switch(currentCommand) {
-		case ACK:
-			SerialSend("G#"); // respond to ack with mount type (G=GEM)
-			break;
-		case P_HighPrecisionToggle:
-			highPrecision=!highPrecision;
-			if(highPrecision) {
-				progmemPrint(PSTR("HIGH PRECISION#"));
-			} else {
-				progmemPrint(PSTR("LOW PRECISION#"));
+	bool returnval;
+	signed long miscSignedLong;
+	
+	// Misc commands
+	if(serialBuffer[1]=='A'&&serialBuffer[2]=='C'&&serialBuffer[3]=='K') {
+		SerialSend("G#"); // respond to ack with mount type (G=GEM)
+	}
+	if(serialBuffer[1]=='P') { // P_HighPrecisionToggle;
+		highPrecision=!highPrecision;
+		if(highPrecision) {
+			progmemPrint(PSTR("HIGH PRECISION#"));
+		} else {
+			progmemPrint(PSTR("LOW PRECISION#"));
+		}
+	}
+	if(serialBuffer[1]=='U') { // U_ToggleLongFormat
+		longFormat=!longFormat;
+		// returns nothing
+	}
+	if(serialBuffer[1]=='C' && serialBuffer[2]=='M') { // sync
+		mount -> sync(currentObjectPos);
+		// progmemPrint(PSTR("0"));  // returns object name according to docs but causes problems with client software - TODO what is really normally returned?
+	}
+
+	switch(serialBuffer[1]) {
+		// Set (S) commands
+		case 'S' :
+			switch(serialBuffer[2]) {
+				case 'r': // Sr_SetRAOfCurrentObject
+					if(setRA()) {
+						progmemPrint(PSTR("1#"));
+					} else {
+						progmemPrint(PSTR("0#"));
+					}
+					break;
+				case 'S': // SS_SetSiderealTime
+					// TODO
+					break;
+				case 'C': // SC_SetCalendarDate
+					if(setDate()) {
+						progmemPrint(PSTR("1#"));
+					} else {
+						progmemPrint(PSTR("0#"));
+					}
+				case 'L': // SL_SetLocalTime
+					if(setLocalTime()) {
+						progmemPrint(PSTR("1#"));
+					} else {
+						progmemPrint(PSTR("0#"));
+					}
+					break;
+				case 'd': // Sd_SetDECOfCurrentObject
+					if(setDEC()) {
+						progmemPrint(PSTR("1#"));
+					} else {
+						progmemPrint(PSTR("0#"));
+					}
+					break;
+				case 't': // St_SetLatitude
+					progmemPrint(PSTR("1#")); // TODO
+					break;
+				case 'g': // Sg_SetLongitude
+					progmemPrint(PSTR("1#")); // TODO
+					break;
+				case 'G': // SG_SetOffsetFromGMT
+					progmemPrint(PSTR("1#")); // TODO
+					break;
 			}
 			break;
-		case U_ToggleLongFormat:
-			longFormat=!longFormat;
-			// returns nothing
+		
+		// Get (G) commands
+		case 'G' :
+			switch(serialBuffer[2]) {
+				case 'R' : // GR_GetRAOfMount;
+					printLX200positionRA(mount -> ra_axis -> currentAngle());
+					break;
+				case 'D' : // GD_GetDECOfMount
+					printLX200positionDEC(mount -> dec_axis -> currentAngle());
+					break;
+				case 'S' : // GS_GetSiderealTime
+					// TODO
+					break;
+				case 'L' :  // GL_GetLocalTime
+					SerialSend(String(nowTime.hour()));
+					progmemPrint(PSTR(":"));
+					SerialSend(String(nowTime.minute()));
+					progmemPrint(PSTR(":"));
+					SerialSend(String(nowTime.second()));
+					progmemPrint(PSTR("#"));
+					break;
+				case 'a' : // Ga_GetLocalTime
+					SerialSend(String(nowTime.hour12()));
+					progmemPrint(PSTR(":"));
+					SerialSend(String(nowTime.minute()));
+					progmemPrint(PSTR(":"));
+					SerialSend(String(nowTime.second()));
+					progmemPrint(PSTR("#"));
+					break;
+				case 'C' : // GC_GetCalendarDate
+					SerialSend(String(nowTime.month()));
+					progmemPrint(PSTR("/"));
+					SerialSend(String(nowTime.day()));
+					progmemPrint(PSTR("/"));
+					SerialSend(String(nowTime.year()));
+					progmemPrint(PSTR("#"));
+					break;
+				case 'c' : // Gc_Get12or24HourClockStatus
+					if(twentyFour_hourmode) {
+						progmemPrint(PSTR("24#"));
+					} else {
+						progmemPrint(PSTR("12#"));
+					}
+					break;
+				case 't' : // Gt_GetLatitude
+					progmemPrint(PSTR("+51*43")); // TODO
+					break;
+				case 'g' : // Gg_GetLongitude
+					progmemPrint(PSTR("359*71")); // TODO
+					break;
+			}
 			break;
-		case CM_SyncToCurrentObject:
-			mount -> sync(currentObjectPos);
-			// progmemPrint(PSTR("0"));  // returns object name // TODO what is really normally returned?
+			
+		// Movement (M) commands
+		case 'M' :
+			switch(serialBuffer[2]) {
+				case 'S' : // MS_SlewToCurrentObject
+					mount -> gotoPos(currentObjectPos);
+					// returns can slew.. always! - could really use some checking to avoid mount crashes!
+					progmemPrint(PSTR("0#")); 
+					break;
+				case 'n' : // Mn_MoveNorth
+					mount -> slewNorth(motionRate);
+					break;
+				case 's' : // Ms_MoveSouth
+					mount -> slewSouth(motionRate);
+					break;
+				case 'e' : // Me_MoveEast
+					mount -> slewEast(motionRate);
+					break;
+				case 'w' : // Mw_MoveWest
+					mount -> slewWest(motionRate);
+					break;
+			}
 			break;
-		case MS_SlewToCurrentObject:
-			mount -> gotoPos(currentObjectPos);
-			progmemPrint(PSTR("0#")); // returns can slew // TODO implement impossible slew calcs when RTC arrives
-			break;
-		case RG_MotionRateGuide:
-			motionRate = 10;
-			break;
-		case RC_MotionRateCenter:
-			motionRate = 100;
-			break;
-		case RM_MotionRateFind:
-			motionRate = 150;
-			break;
-		case RS_MotionRateSlew:
-			motionRate = 255;
-			break;
-		case Mn_MoveNorth:
-			mount -> slewNorth(motionRate);
-			break;
-		case Ms_MoveSouth:
-		    mount -> slewSouth(motionRate);
-			break;
-		case Me_MoveEast:
-			mount -> slewEast(motionRate);
-			break;
-		case Mw_MoveWest:
-			mount -> slewWest(motionRate);
-			break;
-		case Qn_StopMoveNorth:
+		
+		// Movement stop (Q) commands
+		case 'Q' :
+			/* No need in current implemtation to check second char - all paths lead to same end
+			switch(serialBuffer[2]) {
+				case 'n' : // Qn_StopMoveNorth
+					mount -> stopSlew();
+					break;
+				case 's' : // Qs_StopMoveSouth
+					mount -> stopSlew();
+					break;
+				case 'e' : // Qe_StopMoveEast
+					mount -> stopSlew();
+					break;
+				case 'w' : // Qw_StopMoveWest
+					mount -> stopSlew();
+					break;
+				case 0 : // Q_stopslew
+					mount -> stopSlew();
+					break;
+			}
+			*/
 			mount -> stopSlew();
-			break; 
-		case Qs_StopMoveSouth:
-			mount -> stopSlew();
 			break;
-		case Qe_StopMoveEast: 
-			mount -> stopSlew();
-			break;
-		case Qw_StopMoveWest:
-			mount -> stopSlew();
-			break;
-		case Q_AbortSlew:
-			mount -> stopSlew();
-			break;
-		case c_Get12or24HourClockStatus:
-			if(twentyFour_hourmode) {
-				progmemPrint(PSTR("24#"));
-			} else {
-				progmemPrint(PSTR("12#"));
+		
+		// Rate set (R) commands
+		case 'R' :
+			switch(serialBuffer[2]) {
+				case 'G' : // RG_MotionRateGuide
+					motionRate = 10;
+					break;
+				case 'C' : // RC_MotionRateCenter
+					motionRate = 100;
+					break;
+				case 'M' : // RM_MotionRateFind
+					motionRate = 150;
+					break;
+				case 'S' : // RS_MotionRateSlew
+					motionRate = 255;
+					break;
 			}
 			break;
-		case GR_GetRAOfMount:
-			printLX200positionRA(mount -> ra_axis -> currentAngle());
-			break;
-		case GD_GetDECOfMount:
-			printLX200positionDEC(mount -> dec_axis -> currentAngle());
-			break;
-		case Sd_SetDECOfCurrentObject:
-			if(setDEC()) {
-				progmemPrint(PSTR("1#"));
-			} else {
-				progmemPrint(PSTR("0#"));
+		// Extended (E) commands - not part of the LX200 protocol
+		case 'E' :
+			miscSignedLong = getExtendedCommandValue(); // check if there was a value given after command
+			switch(serialBuffer[2]) {
+				// value read/set commands - if a value was supplied after the command
+			        // (seperated by a space) then it sets the value
+				// the value is read back in either case
+				case 'X' : // Get gearpos_max for RA axis - set not availible
+					SerialSend(String(mount -> ra_axis -> gearPosition_max));
+					SerialSend("#");
+					break; 
+				case 'Y' : // Get gearpos_max for DEC axis - set not availible
+					SerialSend(String(mount -> dec_axis -> gearPosition_max));
+					SerialSend("#");
+					break;
+				case 'R' : // Get gearpos for RA axis
+					if(miscSignedLong != -1) {
+					  mount -> ra_axis -> gearPosition_raw = miscSignedLong;
+					}
+					SerialSend(String(mount -> ra_axis -> gearPosition_raw));
+					SerialSend("#");
+					break;
+				case 'D' : // Get gearpos for DEC axis
+					if(miscSignedLong != -1) {
+					  mount -> dec_axis -> gearPosition_raw = miscSignedLong;
+					}
+					SerialSend(String(mount -> dec_axis -> gearPosition_raw));
+					SerialSend("#");
+					break;
+				case 'r' : // Get gearpos_target for RA axis
+					if(miscSignedLong != -1) {
+					  mount -> ra_axis -> gearPosition_target = miscSignedLong;
+					}
+					SerialSend(String(mount -> ra_axis -> gearPosition_target));
+					SerialSend("#");
+					break;
+				case 'd' : // Get gearpos_target for DEC axis
+					if(miscSignedLong != -1) {
+					  mount -> dec_axis -> gearPosition_target = miscSignedLong;
+					}
+					SerialSend(String(mount -> dec_axis -> gearPosition_target));
+					SerialSend("#");
+					break;
 			}
-			break;
-		case Sr_SetRAOfCurrentObject:
-			if(setRA()) {
-				progmemPrint(PSTR("1#"));
-			} else {
-				progmemPrint(PSTR("0#"));
-			}
-			break;
-		case GS_GetSiderealTime: // returns HH:MM:SS#
-			break;
-		case SS_SetSiderealTime: // :SS HH:MM:SS# returns Ok
-			break;
-		case GL_GetLocalTime: // Returns HH:MM:SS# in 24 hour format
-			SerialSend(String(nowTime.hour()));
-			progmemPrint(PSTR(":"));
-			SerialSend(String(nowTime.minute()));
-			progmemPrint(PSTR(":"));
-			SerialSend(String(nowTime.second()));
-			progmemPrint(PSTR("#"));
-			break;
-		case Ga_GetLocalTime: // Returns HH:MM:SS# in 12 hour format
-			SerialSend(String(nowTime.hour12()));
-			progmemPrint(PSTR(":"));
-			SerialSend(String(nowTime.minute()));
-			progmemPrint(PSTR(":"));
-			SerialSend(String(nowTime.second()));
-			progmemPrint(PSTR("#"));
-			break;
-		case SL_SetLocalTime: // :SL HH:MM:SS#  NOTE: The parameter should always be in 24 hour format.// returns Ok
-			if(setLocalTime()) {
-				progmemPrint(PSTR("1#"));
-			} else {
-				progmemPrint(PSTR("0#"));
-			}
-			break;
-		case GC_GetCalendarDate: // Returns MM/DD/YY#
-			SerialSend(String(nowTime.month()));
-			progmemPrint(PSTR("/"));
-			SerialSend(String(nowTime.day()));
-			progmemPrint(PSTR("/"));
-			SerialSend(String(nowTime.year()));
-			progmemPrint(PSTR("#"));
-			break;
-		case SC_SetCalendarDate: //  :SC MM/DD/YY# returns Ok
-			if(setDate()) {
-				progmemPrint(PSTR("1#"));
-			} else {
-				progmemPrint(PSTR("0#"));
-			}
-			break;
-		case St_SetLatitude: // :St+51*43
-			progmemPrint(PSTR("1#")); // TODO
-			break;
-		case Sg_SetLongitude: // :Sg000*17
-			progmemPrint(PSTR("1#")); // TODO
-			break;
-		case Gt_GetLatitude: 
-			progmemPrint(PSTR("+51*43")); // TODO
-			break;
-		case Gg_GetLongitude:
-			progmemPrint(PSTR("359*71")); // TODO
-			break;
-		case SG_SetOffsetFromGMT: // :SG+00
-			progmemPrint(PSTR("1#")); // TODO
-			break;
-		default:
-			// LX200 does not return any data when encoutering an unknown command
 			break;
 	}
 }

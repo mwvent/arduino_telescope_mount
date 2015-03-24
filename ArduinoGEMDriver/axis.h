@@ -51,7 +51,7 @@ class axis_c
 	
 	// Gear Properties
 	// ---------------
-	protected:
+	public:
 		// the amount of teeth on the main axis gear that the driven worm shaft drives 
 		int gearTeeth; 
 		// Encoder Pulses per revoultion of the worm gear

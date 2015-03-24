@@ -2,7 +2,7 @@
 #define _LX200Serial_h_
 #include "settings.h"
 #include <avr/pgmspace.h>
-#include <arduino.h>
+#include <Arduino.h>
 #include "EEPROMHandler.h"
 #include "DS1307_RTC.h"
 #include "mount.h"
@@ -25,7 +25,7 @@ class LX200SerialHandler_c
 		byte motionRate;
 
 		// incoming buffer
-		char serialBuffer[25];
+		char serialBuffer[50];
 		byte serialBuffer_count;
 
 		// serial print and help functions
@@ -34,6 +34,8 @@ class LX200SerialHandler_c
 		void printIntLeadingZero(int value);
 		void printIntLeadingZeroAndPolarity(int value);
 		int findCharacterAndChangeToStringTerminator(char* chars, int startPos, char charToFind);
+		int findCharacter(char* chars, int startPos, char charToFind);
+		signed long getExtendedCommandValue();
 		void progmemPrint (PGM_P s);
 		void progmemPrintln (PGM_P s);
 
