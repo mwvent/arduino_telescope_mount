@@ -618,6 +618,26 @@ void LX200SerialHandler_c::serialCommand() {
 					SerialSend(String(mount -> dec_axis -> gearPosition_target));
 					SerialSend("#");
 					break;
+				case 'N' : // Pulseguide north
+					if(miscSignedLong != -1) {
+					  mount -> guideNorth((unsigned long)miscSignedLong, 10);
+					}
+					break;
+				case 'S' : // Pulseguide south
+					if(miscSignedLong != -1) {
+					  mount -> guideSouth((unsigned long)miscSignedLong, 10);
+					}
+					break;
+				case 'E' : // Pulseguide east
+					if(miscSignedLong != -1) {
+					  mount -> guideEast((unsigned long)miscSignedLong, 10);
+					}
+					break;
+				case 'W' : // // Pulseguide west
+					if(miscSignedLong != -1) {
+					  mount -> guideWest((unsigned long)miscSignedLong, 10);
+					}
+					break;
 			}
 			break;
 	}

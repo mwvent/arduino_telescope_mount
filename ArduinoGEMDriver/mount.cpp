@@ -16,6 +16,8 @@ mount_c::mount_c(uint8_t RAmotorPort, uint8_t DECmotorPort,
 	ra_axis = new ra_axis_c(RAmotorPort, RAEncoderPPR, RAGearTeeth, EEPROMObj);
 	dec_axis = new dec_axis_c(DECmotorPort, DECEncoderPPR, DECGearTeeth, EEPROMObj);
 	encoders.begin(ra_axis, dec_axis);
+	isGuidingNS = false;
+	isGuidingWE = false;
 }
 
 // -------------------------------------------------------------
@@ -30,9 +32,47 @@ void mount_c::update() {
 	// update
 	ra_axis->update();
 	dec_axis->update();
+	if(isGuidingNS && ( millis() >= NSGuidingTimeout) ) {
+		isGuidingNS = false;
+		dec_axis->stopSlew();
+	}
+	if(isGuidingWE && ( millis() >= WEGuidingTimeout) ) {
+		isGuidingWE = false;
+		ra_axis->stopSlew();
+	}
 }
 
-// slew commmands
+// -------------------------------------------------------------
+// Pulse guide control
+// -------------------------------------------------------------
+void mount_c::guideNorth(unsigned long ms, byte speed) {
+	dec_axis->stopSlew();
+	dec_axis->slewNorth(speed);
+	isGuidingNS = true;
+	NSGuidingTimeout = millis() + ms;
+}
+void mount_c::guideSouth(unsigned long ms, byte speed) {
+	dec_axis->stopSlew();
+	dec_axis->slewSouth(speed);
+	isGuidingNS = true;
+	NSGuidingTimeout = millis() + ms;
+}
+void mount_c::guideEast(unsigned long ms, byte speed) {
+	ra_axis->stopSlew();
+	ra_axis->slewEast(speed);
+	isGuidingWE = true;
+	WEGuidingTimeout = millis() + ms;
+}
+void mount_c::guideWest(unsigned long ms, byte speed) {
+	ra_axis->stopSlew();
+	ra_axis->slewWest(speed);
+	isGuidingWE = true;
+	WEGuidingTimeout = millis() + ms;
+}
+
+// -------------------------------------------------------------
+// Basic movement control
+// -------------------------------------------------------------
 void mount_c::stopSlew() {
 	ra_axis->stopSlew();
 	dec_axis->stopSlew();

@@ -44,6 +44,14 @@ class mount_c
 		void sync();
 		void sync(position syncPos);
 		void gotoPos(position gotoPos);
+		void guideNorth(unsigned long ms, byte speed);
+		void guideSouth(unsigned long ms, byte speed);
+		void guideEast(unsigned long ms, byte speed);
+		void guideWest(unsigned long ms, byte speed);
+		bool isGuidingWE;
+		bool isGuidingNS;
+		unsigned long WEGuidingTimeout;
+		unsigned long NSGuidingTimeout;
 		
 		
 	// PEC Train
