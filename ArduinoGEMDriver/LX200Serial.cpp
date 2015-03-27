@@ -592,50 +592,52 @@ void LX200SerialHandler_c::serialCommand() {
 					break;
 				case 'R' : // Get gearpos for RA axis
 					if(miscSignedLong != -1) {
-					  mount -> ra_axis -> gearPosition_raw = miscSignedLong;
+						mount -> ra_axis -> setgearPosition_raw(miscSignedLong);
+						mount -> ra_axis -> priorityUpdate();
 					}
 					SerialSend(String(mount -> ra_axis -> gearPosition_raw));
 					SerialSend("#");
 					break;
 				case 'D' : // Get gearpos for DEC axis
 					if(miscSignedLong != -1) {
-					  mount -> dec_axis -> gearPosition_raw = miscSignedLong;
+						mount -> dec_axis -> setgearPosition_raw(miscSignedLong);
+						mount -> dec_axis -> priorityUpdate();
 					}
 					SerialSend(String(mount -> dec_axis -> gearPosition_raw));
 					SerialSend("#");
 					break;
 				case 'r' : // Get gearpos_target for RA axis
 					if(miscSignedLong != -1) {
-					  mount -> ra_axis -> gearPosition_target = miscSignedLong;
+						mount -> ra_axis -> gearPosition_target = miscSignedLong;
 					}
 					SerialSend(String(mount -> ra_axis -> gearPosition_target));
 					SerialSend("#");
 					break;
 				case 'd' : // Get gearpos_target for DEC axis
 					if(miscSignedLong != -1) {
-					  mount -> dec_axis -> gearPosition_target = miscSignedLong;
+						mount -> dec_axis -> gearPosition_target = miscSignedLong;
 					}
 					SerialSend(String(mount -> dec_axis -> gearPosition_target));
 					SerialSend("#");
 					break;
 				case 'N' : // Pulseguide north
 					if(miscSignedLong != -1) {
-					  mount -> guideNorth((unsigned long)miscSignedLong, 10);
+						mount -> guideNorth((unsigned long)miscSignedLong, 10);
 					}
 					break;
 				case 'S' : // Pulseguide south
 					if(miscSignedLong != -1) {
-					  mount -> guideSouth((unsigned long)miscSignedLong, 10);
+						mount -> guideSouth((unsigned long)miscSignedLong, 10);
 					}
 					break;
 				case 'E' : // Pulseguide east
 					if(miscSignedLong != -1) {
-					  mount -> guideEast((unsigned long)miscSignedLong, 10);
+						mount -> guideEast((unsigned long)miscSignedLong, 10);
 					}
 					break;
 				case 'W' : // // Pulseguide west
 					if(miscSignedLong != -1) {
-					  mount -> guideWest((unsigned long)miscSignedLong, 10);
+						mount -> guideWest((unsigned long)miscSignedLong, 10);
 					}
 					break;
 			}

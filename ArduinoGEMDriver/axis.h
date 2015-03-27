@@ -73,6 +73,10 @@ class axis_c
 		Angle* axisAngle;
 		bool decWestSide;
 		bool decEastSide;
+		// an interrupt safe method for setting gearPosition_raw externally
+		void setgearPosition_raw(signed long newValue);
+		signed long newGearPositon_raw_value;
+		bool newGearPositon_raw_value_event;
 	protected:
 		// get difference from A to B paying regards to the fact that the shortest route between the two may cross 0
 		signed long getDiff(unsigned long A, unsigned long B);

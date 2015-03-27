@@ -7,6 +7,7 @@
 // -------------------------------------------------------------
 // Init
 // -------------------------------------------------------------
+
 ra_axis_c::ra_axis_c(byte imotorport, int encoder_PPR, int igearTeeth, EEPROMHandler_c* EEPROMObj) {
 	motorport = imotorport;
 	motor = new AF_DCMotor(motorport, MOTOR12_1KHZ);
@@ -20,6 +21,7 @@ ra_axis_c::ra_axis_c(byte imotorport, int encoder_PPR, int igearTeeth, EEPROMHan
 	gearPosition_max_half = (signed long)((float)gearPosition_max / (float)2);
 	gearPosition_target = gearPosition_max_half;
 	gearPosition_raw = gearPosition_max_half;
+	newGearPositon_raw_value_event = false;
 	axisAngle = new Angle;
 	setupTrackingRates();
 	slewingEast = false;
@@ -39,6 +41,7 @@ dec_axis_c::dec_axis_c(byte imotorport, int encoder_PPR, int igearTeeth, EEPROMH
 	gearPosition_max_half = gearPosition_max / 2;
 	gearPosition_target = gearPosition_max_half;
 	gearPosition_raw = gearPosition_max_half;
+	newGearPositon_raw_value_event = false;
 	setupTrackingRates();
 	slewingNorth = false;
 	slewingSouth = false;
@@ -82,14 +85,19 @@ void dec_axis_c::setupTrackingRates() {
 }
 
 // -------------------------------------------------------------
-// Main loop - High Priority
+// Main loop - High Priority - called at very regular intervals
 // -------------------------------------------------------------
 void ra_axis_c::priorityUpdate() {
 	signed long errorTolerance_local = (signed long)(errorTolerance);
 	signed long errorTolerance_local_neg = (signed long)(errorTolerance);
+	
 	// update gear position
 	boolean zWasAlreadyKnown = firstZrecorded;
 	gearPosition_raw += (signed long)encoders.readRAencoderMovement();
+	if(newGearPositon_raw_value_event) {
+	  gearPosition_raw = newGearPositon_raw_value;
+	  newGearPositon_raw_value_event = false;
+	}
 	
 	// check for flags where control of the motors via this routine is not desireable
 	if(slewingEast || slewingWest) {
@@ -140,6 +148,11 @@ void ra_axis_c::priorityUpdate() {
 void dec_axis_c::priorityUpdate() {
 	// update gear position
 	gearPosition_raw += (signed long)encoders.readDECencoderMovement();
+	if(newGearPositon_raw_value_event) {
+	  gearPosition_raw = newGearPositon_raw_value;
+	  newGearPositon_raw_value_event = false;
+	}
+	
 	// no tracking when slewing
 	if(slewingNorth || slewingSouth) {
 		return;
@@ -335,6 +348,11 @@ signed long ra_axis_c::gearPosition() {
 
 signed long dec_axis_c::gearPosition() {
 		return gearPosition_raw;
+}
+
+void axis_c::setgearPosition_raw(signed long newValue) {
+	newGearPositon_raw_value = newValue;
+	newGearPositon_raw_value_event = true;
 }
 
 signed long ra_axis_c::gearPositionError() {
