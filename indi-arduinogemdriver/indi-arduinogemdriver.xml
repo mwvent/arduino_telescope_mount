@@ -1,0 +1,6 @@
+<devGroup group="Telescopes">
+	<device label="ArduinoGEMDriver">
+		<driver name="ArduinoGEMDriver">indi_arduino_gem_driver</driver>
+                <version>0.2</version>
+	</device>
+</devGroup>
