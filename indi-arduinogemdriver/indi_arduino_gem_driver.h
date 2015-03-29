@@ -30,7 +30,6 @@ protected:
     bool GuideWest(float ms);
     bool MoveNS(TelescopeMotionNS dir, TelescopeMotionCommand command);
     bool MoveWE(TelescopeMotionWE dir, TelescopeMotionCommand command);
-    void TimerHit();
     
 private:
     double currentRA;
@@ -40,6 +39,8 @@ private:
     
     double DECToAxisDegrees(double dec);
     double AxisDegreesToDec(double degrees);
+    
+    bool serialCommand(char *command, char *responseBuffer, bool getResponse);
     
     int RA_gearpos;
     int DEC_gearpos;
