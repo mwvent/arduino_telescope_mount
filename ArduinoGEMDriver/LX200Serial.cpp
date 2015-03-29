@@ -536,28 +536,24 @@ void LX200SerialHandler_c::serialCommand() {
 		
 		// Movement stop (Q) commands
 		case 'Q' :
-			/* No need in current implemtation to check second char - all paths lead to same end
 			switch(serialBuffer[2]) {
 				case 'n' : // Qn_StopMoveNorth
-					mount -> stopSlew();
+					mount -> dec_axis -> stopSlew();
 					break;
 				case 's' : // Qs_StopMoveSouth
-					mount -> stopSlew();
+					mount -> dec_axis -> stopSlew();
 					break;
 				case 'e' : // Qe_StopMoveEast
-					mount -> stopSlew();
+					mount -> ra_axis -> stopSlew();
 					break;
 				case 'w' : // Qw_StopMoveWest
-					mount -> stopSlew();
+					mount -> ra_axis -> stopSlew();
 					break;
 				case 0 : // Q_stopslew
 					mount -> stopSlew();
 					break;
 			}
-			*/
-			mount -> stopSlew();
 			break;
-		
 		// Rate set (R) commands
 		case 'R' :
 			switch(serialBuffer[2]) {
